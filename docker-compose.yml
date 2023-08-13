@@ -1,17 +1,44 @@
 version: '3.5'
 services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: inventory
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.0
+    container_name: elasticsearch
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.9.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
   zookeeper:
     image: zookeeper:latest
     container_name: zookeeper
-    restart: always
     ports:
-      - 2181:2181
+      - "2181:2181"
 
   kafka0:
     image: wurstmeister/kafka:latest
     container_name: kafka0
     ports:
-      - 9092:9092
+      - "9092:9092"
     environment:
       KAFKA_LISTENERS: "INTERNAL://:29092,EXTERNAL://:9092"
       KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka0:29092,EXTERNAL://localhost:9092"
@@ -21,31 +48,26 @@ services:
     depends_on:
       - zookeeper
 
-  kafka1:
-    image: wurstmeister/kafka:latest
-    container_name: kafka1
-    ports:
-      - 9093:9093
-    environment:
-      KAFKA_LISTENERS: "INTERNAL://:29092,EXTERNAL://:9093"
-      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka1:29092,EXTERNAL://localhost:9093"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
-      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-    depends_on:
-      - zookeeper
-
-  management:
+  kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: management
+    container_name: kafka-ui
     ports:
-      - 9123:9123
+      - "9123:9123"
     environment:
       SERVER_PORT: 9123
       KAFKA_CLUSTERS_0_NAME: kafka-0
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
-      KAFKA_CLUSTERS_1_NAME: kafka-1
-      KAFKA_CLUSTERS_1_BOOTSTRAPSERVERS: kafka1:29092
-    env_file:
-      - .env
 
+  debezium:
+    image: debezium/connect:latest
+    container_name: debezium
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka0
+    environment:
+      BOOTSTRAP_SERVERS: kafka0:29092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
