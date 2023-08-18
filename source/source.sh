@@ -1,7 +1,7 @@
 curl --location 'http://localhost:8083/connectors' \
 --header 'Content-Type: application/json' \
 --data '{
-    "name": "inventory-connector",
+    "name": "elasticsearch-source-connector",
     "config": {
         "connector.class": "io.debezium.connector.mysql.MySqlConnector",
         "tasks.max": "1",
@@ -16,10 +16,8 @@ curl --location 'http://localhost:8083/connectors' \
         "database.history.kafka.topic": "schema-changes.inventory",
         "schema.history.internal.kafka.bootstrap.servers": "kafka0:29092",
         "schema.history.internal.kafka.topic": "schema-changes.inventory",
-        "include.schema.changes": false,
-        "transforms": "route",
-        "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
-        "transforms.route.regex": "([^.]+)\\.([^.]+)\\.([^.]+)",
-        "transforms.route.replacement": "$3"
+        "key.ignore": "false",
+        "behavior.on.null.values": "delete",
+        "tombstones.on.delete": true
     }
 }'
